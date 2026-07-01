@@ -6,6 +6,8 @@ import os
 import re
 import sys
 import time
+import json
+import tempfile
 import requests
 from bs4 import BeautifulSoup
 from google import genai
@@ -14,6 +16,23 @@ from youtube_transcript_api import YouTubeTranscriptApi
 # ---- ① 設定 ----
 PROJECT_ID = "gemini-summarizer-501110"
 LOCATION   = "us-central1"
+
+# ---- ①-2 クラウドサーバー用：Google認証情報の自動復元処理 ----
+if os.environ.get("GOOGLE_APPLICATION_CREDENTIALS_JSON"):
+    try:
+        cred_json = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS_JSON")
+        json_data = json.loads(cred_json)
+        
+        # 一時ファイルにJSONを保存
+        temp_cred_file = tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json')
+        json.dump(json_data, temp_cred_file)
+        temp_cred_file.close()
+        
+        # 環境変数に一時ファイルのパスを設定
+        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = temp_cred_file.name
+        print("💡 GOOGLE_APPLICATION_CREDENTIALS_JSON から認証情報を正常に復元しました。")
+    except Exception as e:
+        print(f"⚠️ GOOGLE_APPLICATION_CREDENTIALS_JSON の復元中にエラーが発生しました: {e}")
 
 # Google Cloudの認証情報を使用して初期化
 client = genai.Client(
