@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- === 基本のSEO対策 === -->
+    <title>AI Multi-Summarizer | 無料でYouTube動画やWeb記事をAI要約</title>
+    <meta name="description" content="Gemini APIを利用した超高速・高精度のAI要約ツール。長いYouTube動画の字幕、ウェブ記事の本文、長文テキストを瞬時に箇条書きで日本語要約します。制限なしで無料利用可能。">
+    <meta name="keywords" content="AI要約, YouTube要約, ウェブサイト要約, 無料AI, Gemini API, 文字起こし要約, テキストまとめ">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://your-app-name.onrender.com">
+
+    <!-- === OGP設定 (SNSでシェアした時の見た目) === -->
+    <meta property="og:title" content="AI Multi-Summarizer | 無料でYouTube動画やWeb記事をAI要約">
+    <meta property="og:description" content="YouTube動画の字幕やブログ記事を瞬時に箇条書き要約！最新AI搭載の無料マルチ要約ツール。">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://your-app-name.onrender.com">
+    <meta property="og:image" content="https://your-app-name.onrender.com/static/images/ogp-image.png">
+    <meta property="og:site_name" content="AI Multi-Summarizer">
+    <meta name="twitter:card" content="summary_large_image">
+
+    <!-- === 構造化データ (Google検索エンジン向け) === -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "AI Multi-Summarizer",
+      "description": "YouTube動画やWeb記事、長文テキストを日本語で高精度に要約するAIツール",
+      "applicationCategory": "UtilityApplication",
+      "operatingSystem": "All",
+      "browserRequirements": "Requires JavaScript. Requires HTML5.",
+      "genre": "AI, Summary Tool",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "JPY"
+      }
+    }
+    </script>
+
+    <!-- Google FontsのOutfitフォントをインポート -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Noto+Sans+JP:wght@300;400;700&display=swap" rel="stylesheet">
+    <!-- CSSファイルの紐付け -->
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="background-glow bg-glow-1"></div>
+    <div class="background-glow bg-glow-2"></div>
+
+    <div class="container">
+        <!-- ヘッダー -->
+        <header>
+            <div class="logo">
+                <span class="logo-icon">🤖</span>
+                <h1>AI <span class="gradient-text">Multi-Summarizer</span></h1>
+            </div>
+            <p class="subtitle">YouTube動画、Web記事、長文を瞬時に美しくまとめます。</p>
+        </header>
+
+        <!-- メインコンテンツ (物理的にズレない行分離グリッドレイアウト) -->
+        <main class="main-card">
+            <div class="app-layout">
+                <!-- 1行目: ヘッダー部分 (左右のタイトル) -->
+                <div class="layout-row headers-row">
+                    <div class="layout-col left-col">
+                        <label for="input-content" class="section-label">要約したい内容を入力</label>
+                    </div>
+                    <div class="layout-col right-col">
+                        <div class="result-header">
+                            <h2>✨ 要約結果</h2>
+                            <button id="copy-btn" class="secondary-button">結果をコピー</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2行目: メインコンテンツ (左右の枠) -->
+                <div class="layout-row content-row">
+                    <!-- 左カラム: 入力エリア -->
+                    <div class="layout-col left-col">
+                        <div class="textarea-wrapper">
+                            <textarea id="input-content" placeholder="ここにYouTubeのURL、WebサイトのURL、または長文を入力してください..."></textarea>
+                        </div>
+                        
+                        <div class="controls">
+                            <div class="supported-badges">
+                                <span class="badge youtube">🎥 YouTube</span>
+                                <span class="badge web">🌐 Web記事</span>
+                                <span class="badge text">📄 長文テキスト</span>
+                            </div>
+                            <button id="submit-btn" class="glow-button">
+                                <span class="button-text">要約する</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 右カラム: 要約結果 -->
+                    <div id="result-panel" class="layout-col right-col">
+                        <div id="result-content" class="result-content">
+                            <p class="placeholder-text">ここに要約結果が表示されます。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- 要約履歴エリア -->
+        <section class="history-section">
+            <h3>📂 最近の要約履歴</h3>
+            <div id="history-list" class="history-list">
+                <p class="no-history">履歴はありません。</p>
+            </div>
+        </section>
+
+        <!-- フッター -->
+        <footer>
+            <p>&copy; 2026 AI Multi-Summarizer. Powered by Gemini API & Vertex AI</p>
+        </footer>
+    </div>
+
+    <!-- JSファイルの紐付け (キャッシュ対策版) -->
+    <script src="/static/js/main.js?v=1.1"></script>
+</body>
+</html>

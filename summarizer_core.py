@@ -75,18 +75,9 @@ def get_youtube_transcript(url_or_id: str) -> str:
 
     # 方法1: 標準の youtube-transcript-api を試す
     try:
-        api = YouTubeTranscriptApi()
-        transcript_list = api.list_transcripts(video_id)
-        
-        # 日本語または英語の字幕を探す
-        try:
-            transcript = transcript_list.find_transcript(['ja', 'en'])
-        except Exception:
-            # 見つからない場合は最初の字幕でフォールバック
-            transcript = next(iter(transcript_list))
-            
-        data = transcript.fetch()
-        text_list = [item.text for item in data]
+        # クラスメソッドを直接呼び出して、日本語(ja)か英語(en)を一発で取得する
+        data = YouTubeTranscriptApi.get_transcript(video_id, languages=['ja', 'en'])
+        text_list = [item['text'] for item in data]
         return " ".join(text_list)
         
     except Exception as primary_error:
