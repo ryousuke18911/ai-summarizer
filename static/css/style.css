@@ -1,0 +1,460 @@
+/* ============================================================
+   AI Multi-Summarizer - style.css (Premium Dark UI)
+   ============================================================ */
+
+:root {
+    --bg-dark: #0a0c16;
+    --card-bg: rgba(18, 22, 41, 0.65);
+    --border-color: rgba(255, 255, 255, 0.08);
+    --text-primary: #f3f4f6;
+    --text-secondary: #9ca3af;
+    --primary-glow: linear-gradient(135deg, #a855f7 0%, #3b82f6 100%);
+    --youtube-color: #ef4444;
+    --web-color: #10b981;
+    --text-color: #3b82f6;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background-color: var(--bg-dark);
+    color: var(--text-primary);
+    font-family: 'Outfit', 'Noto Sans JP', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+    position: relative;
+}
+
+/* 宇宙のような光のオーラ（背景グロー） */
+.background-glow {
+    position: absolute;
+    width: 600px;
+    height: 600px;
+    border-radius: 50%;
+    filter: blur(120px);
+    opacity: 0.15;
+    z-index: -1;
+    pointer-events: none;
+}
+
+.bg-glow-1 {
+    background: #a855f7;
+    top: -10%;
+    right: -10%;
+}
+
+.bg-glow-2 {
+    background: #3b82f6;
+    bottom: -10%;
+    left: -10%;
+}
+
+.container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 40px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+    min-height: 100vh;
+}
+
+/* ヘッダー */
+header {
+    text-align: center;
+    margin-bottom: 10px;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.logo-icon {
+    font-size: 2.5rem;
+}
+
+.logo h1 {
+    font-size: 2.8rem;
+    font-weight: 800;
+    letter-spacing: -1px;
+}
+
+.gradient-text {
+    background: var(--primary-glow);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.subtitle {
+    color: var(--text-secondary);
+    font-size: 1.1rem;
+    font-weight: 300;
+}
+
+/* メインのガラスモルフィズムカード */
+.main-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 24px;
+    padding: 30px;
+    backdrop-filter: blur(20px);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+}
+
+/* 行分離グリッドレイアウト */
+.app-layout {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    gap: 0;
+}
+
+.layout-row {
+    display: flex;
+    gap: 30px;
+    width: 100%;
+}
+
+.headers-row {
+    margin-bottom: 10px;
+}
+
+.layout-col {
+    flex: 1;
+    min-width: 0;
+}
+
+/* 左右の見出し（タイトル）の高さを完全に揃える */
+.section-label, .result-header {
+    height: 40px;
+    display: flex;
+    align-items: center;
+    margin: 0;
+}
+
+.result-header {
+    justify-content: space-between;
+}
+
+.result-header h2 {
+    margin: 0; /* ブラウザ標準の余計な余白をリセット */
+    padding: 0;
+    font-size: 1.25rem;
+    font-weight: 700;
+}
+
+.section-label {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.textarea-wrapper {
+    height: 380px; /* 入力枠の高さを固定 */
+    display: flex;
+    position: relative;
+    border-radius: 16px;
+    padding: 1px;
+    background: var(--border-color);
+    transition: background 0.3s;
+}
+
+.textarea-wrapper:focus-within {
+    background: var(--primary-glow);
+}
+
+textarea {
+    width: 100%;
+    height: 100%;
+    background: rgba(10, 12, 22, 0.8);
+    border: none;
+    border-radius: 15px;
+    padding: 20px;
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 1.05rem;
+    line-height: 1.6;
+    resize: none;
+    outline: none;
+}
+
+/* 操作パネル (入力枠のすぐ下 - ボタンの位置を右下に完全固定) */
+.controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: nowrap; /* 絶対に折り返さない */
+    margin-top: 15px;
+    height: 50px;
+}
+
+/* 右側結果枠内の埋め込みローダー */
+.embedded-loader {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    height: 100%;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+/* モバイル環境（画面幅800px以下）のレイアウト調整 */
+@media (max-width: 800px) {
+    .layout-row {
+        flex-direction: column;
+        gap: 0;
+    }
+    
+    .headers-row {
+        display: none; /* スマホではヘッダー行を非表示にしてスッキリさせる */
+    }
+    
+    .textarea-wrapper, .result-content {
+        height: 280px !important; /* スマホではコンパクトに */
+    }
+    
+    .controls {
+        flex-wrap: wrap; /* スマホのみ折り返しOKにする */
+        height: auto;
+        margin-bottom: 20px;
+    }
+}
+
+.supported-badges {
+    display: flex;
+    gap: 10px;
+}
+
+.badge {
+    padding: 6px 14px;
+    border-radius: 50px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-color);
+}
+
+.badge.youtube { color: var(--youtube-color); }
+.badge.web { color: var(--web-color); }
+.badge.text { color: var(--text-color); }
+
+/* 発光するグラデーションボタン */
+.glow-button {
+    background: var(--primary-glow);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    padding: 14px 28px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    box-shadow: 0 0 20px rgba(168, 85, 247, 0.4);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.glow-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 30px rgba(168, 85, 247, 0.6);
+}
+
+.glow-button:active {
+    transform: translateY(0);
+}
+
+/* ボタンが無効化（要約中）されたときのスタイル */
+.glow-button:disabled {
+    opacity: 0.5; /* 半透明にする */
+    cursor: not-allowed; /* 禁止マークのカーソルにする */
+    transform: none !important; /* ホバーで動かさない */
+    box-shadow: none !important; /* 光らせない */
+}
+
+/* ローディング表示用のスピナー */
+.loading-spinner {
+    display: none;
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 1s infinite linear;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ステータス（読み込み中）パネル */
+.status-panel {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px dashed var(--border-color);
+    padding: 16px 20px;
+    border-radius: 12px;
+}
+
+.pulse-loader {
+    width: 12px;
+    height: 12px;
+    background-color: #3b82f6;
+    border-radius: 50%;
+    animation: pulse 1.5s infinite ease-in-out;
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(0.6); opacity: 0.4; }
+    50% { transform: scale(1.2); opacity: 1; }
+}
+
+/* 結果パネル */
+.result-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.result-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.result-header h2 {
+    font-size: 1.4rem;
+    font-weight: 700;
+}
+
+.secondary-button {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background 0.2s;
+}
+
+.secondary-button:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.result-content {
+    height: 380px; /* 入力枠(380px)と高さを完全に揃える */
+    overflow-y: auto; /* はみ出たらスクロールバーを出す */
+    background: rgba(10, 12, 22, 0.5);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 24px;
+    font-size: 1.05rem;
+    line-height: 1.8;
+    color: #e5e7eb;
+}
+
+.placeholder-text {
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+/* スクロールバーを美しくカスタマイズ (Chrome, Safari用) */
+.result-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.result-content::-webkit-scrollbar-track {
+    background: rgba(10, 12, 22, 0.2);
+    border-radius: 10px;
+}
+
+.result-content::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+}
+
+.result-content::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* マークダウン表示の簡易スタイル調整 */
+.result-content h1, .result-content h2, .result-content h3 {
+    margin-top: 15px;
+    margin-bottom: 10px;
+}
+.result-content ul, .result-content ol {
+    margin-left: 20px;
+    margin-bottom: 15px;
+}
+.result-content li {
+    margin-bottom: 8px;
+}
+
+/* 履歴セクション */
+.history-section {
+    background: rgba(255, 255, 255, 0.01);
+    border: 1px solid rgba(255, 255, 255, 0.03);
+    border-radius: 16px;
+    padding: 24px;
+}
+
+.history-section h3 {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 15px;
+}
+
+.history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.history-item {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 12px 18px;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.history-item:hover {
+    background: rgba(255, 255, 255, 0.07);
+}
+
+.no-history {
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+/* フッター */
+footer {
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    margin-top: 20px;
+}
+
+.hidden {
+    display: none !important;
+}
