@@ -53,18 +53,22 @@ def extract_youtube_video_id(url: str) -> str:
     return ""
 
 # ---- ③ YouTube動画の音声字幕（トランスクリプト）を取得する ----
-def get_youtube_transcript(url: str) -> str:
-    # URLから動画IDを抽出する
-    video_id = ""
-    # 通常のURL: youtube.com/watch?v=...
-    if "v=" in url:
-        video_id = url.split("v=")[1].split("&")[0]
-    # 短縮URL: youtu.be/...
-    elif "youtu.be/" in url:
-        video_id = url.split("youtu.be/")[1].split("?")[0]
-    # ショート動画: youtube.com/shorts/...
-    elif "shorts/" in url:
-        video_id = url.split("shorts/")[1].split("?")[0]
+def get_youtube_transcript(url_or_id: str) -> str:
+    # 引数がすでに11文字の動画IDである場合（例: juQatrnVsGE）
+    if len(url_or_id) == 11 and "/" not in url_or_id and "=" not in url_or_id:
+        video_id = url_or_id
+    else:
+        # URLから動画IDを抽出する
+        video_id = ""
+        # 通常のURL: youtube.com/watch?v=...
+        if "v=" in url_or_id:
+            video_id = url_or_id.split("v=")[1].split("&")[0]
+        # 短縮URL: youtu.be/...
+        elif "youtu.be/" in url_or_id:
+            video_id = url_or_id.split("youtu.be/")[1].split("?")[0]
+        # ショート動画: youtube.com/shorts/...
+        elif "shorts/" in url_or_id:
+            video_id = url_or_id.split("shorts/")[1].split("?")[0]
 
     if not video_id:
         raise ValueError("YouTubeの動画IDを検出できませんでした。URLを確認してください。")
