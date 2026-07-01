@@ -5,3 +5,4 @@ beautifulsoup4
 requests
 youtube-transcript-api
 gunicorn
+yt-dlp

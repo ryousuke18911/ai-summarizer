@@ -52,17 +52,115 @@ def extract_youtube_video_id(url: str) -> str:
             return match.group(1)
     return ""
 
-# ---- ③ YouTubeの字幕を取得する関数 ----
-def get_youtube_transcript(video_id: str) -> str:
+# ---- ③ YouTube動画の音声字幕（トランスクリプト）を取得する ----
+def get_youtube_transcript(url: str) -> str:
+    # URLから動画IDを抽出する
+    video_id = ""
+    # 通常のURL: youtube.com/watch?v=...
+    if "v=" in url:
+        video_id = url.split("v=")[1].split("&")[0]
+    # 短縮URL: youtu.be/...
+    elif "youtu.be/" in url:
+        video_id = url.split("youtu.be/")[1].split("?")[0]
+    # ショート動画: youtube.com/shorts/...
+    elif "shorts/" in url:
+        video_id = url.split("shorts/")[1].split("?")[0]
+
+    if not video_id:
+        raise ValueError("YouTubeの動画IDを検出できませんでした。URLを確認してください。")
+
+    # 方法1: 標準の youtube-transcript-api を試す
     try:
         api = YouTubeTranscriptApi()
-        transcript_list = api.list(video_id)
-        transcript = transcript_list.find_transcript(['ja', 'en'])
+        transcript_list = api.list_transcripts(video_id)
+        
+        # 日本語または英語の字幕を探す
+        try:
+            transcript = transcript_list.find_transcript(['ja', 'en'])
+        except Exception:
+            # 見つからない場合は最初の字幕でフォールバック
+            transcript = next(iter(transcript_list))
+            
         data = transcript.fetch()
-        text = " ".join([item.text for item in data])
-        return text
-    except Exception as e:
-        raise ValueError(f"YouTubeの字幕を取得できませんでした。字幕機能がオフになっている可能性があります。({e})")
+        text_list = [item.text for item in data]
+        return " ".join(text_list)
+        
+    except Exception as primary_error:
+        print(f"⚠️ youtube-transcript-api が失敗しました（IPブロックの可能性あり）: {primary_error}")
+        print("🔄 yt-dlp を使用した代替取得を試みます...")
+        
+        # 方法2: IPブロック対策に強い yt-dlp をバックアップとして使用する
+        import yt_dlp
+        
+        ydl_opts = {
+            'writeautosub': True,       # 自動生成の字幕も許可
+            'writesubtitles': True,     # 通常の字幕も許可
+            'subtitleslangs': ['ja', 'en'], # 日本語か英語
+            'skip_download': True,      # 動画自体はダウンロードしない
+            'quiet': True,
+            'no_warnings': True,
+        }
+        
+        try:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
+                
+                # 字幕データのURLを探して解析する
+                subtitles = info.get('subtitles', {}) or {}
+                automatic_captions = info.get('automatic_captions', {}) or {}
+                
+                # 日本語(ja)か英語(en)の字幕URLを取得
+                sub_url = ""
+                for lang in ['ja', 'en']:
+                    if lang in subtitles:
+                        sub_url = subtitles[lang][0]['url']
+                        break
+                    elif lang in automatic_captions:
+                        # json形式の自動生成字幕を選ぶ
+                        for sub_format in automatic_captions[lang]:
+                            if sub_format.get('ext') == 'json3' or 'json' in sub_format.get('url', ''):
+                                sub_url = sub_format['url']
+                                break
+                        if sub_url:
+                            break
+                        sub_url = automatic_captions[lang][0]['url']
+                        break
+                
+                if not sub_url:
+                    raise ValueError("動画内に日本語または英語の字幕ファイルが見つかりませんでした。")
+                
+                # 字幕データをダウンロードしてパースする
+                response = requests.get(sub_url, timeout=10)
+                if response.status_code != 200:
+                    raise RuntimeError("字幕ファイルの取得に失敗しました。")
+                
+                # JSON形式（json3）のパース
+                if 'json3' in sub_url or 'srv3' in sub_url or response.headers.get('Content-Type', '').startswith('application/json') or response.text.strip().startswith('{'):
+                    import json
+                    sub_data = response.json()
+                    events = sub_data.get('events', [])
+                    text_parts = []
+                    for event in events:
+                        segs = event.get('segs', [])
+                        for seg in segs:
+                            t = seg.get('utf8', '').strip()
+                            if t:
+                                text_parts.append(t)
+                    return " ".join(text_parts)
+                # XML形式の簡易パース (BeautifulSoupを使用)
+                else:
+                    soup = BeautifulSoup(response.text, 'xml')
+                    text_parts = [p.get_text() for p in soup.find_all('p')]
+                    if not text_parts:
+                        text_parts = [text.get_text() for text in soup.find_all('text')]
+                    return " ".join(text_parts)
+                    
+        except Exception as backup_error:
+            raise RuntimeError(
+                f"YouTubeの字幕を取得できませんでした。字幕機能が完全にオフになっているか、"
+                f"またはアクセス制限が非常に厳しくなっています。\n"
+                f"エラー詳細:\n- 標準API: {primary_error}\n- バックアップ: {backup_error}"
+            )
 
 # ---- ④ Webページから本文を抜き出す関数 ----
 def extract_text_from_url(url: str) -> str:
