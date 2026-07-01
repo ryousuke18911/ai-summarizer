@@ -18,28 +18,37 @@ PROJECT_ID = "gemini-summarizer-501110"
 LOCATION   = "us-central1"
 
 # ---- ①-2 クラウドサーバー用：Google認証情報の自動復元処理 ----
+client = None
+credentials = None
+
 if os.environ.get("GOOGLE_APPLICATION_CREDENTIALS_JSON"):
     try:
+        from google.oauth2 import service_account
         cred_json = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS_JSON")
-        json_data = json.loads(cred_json)
+        info = json.loads(cred_json)
         
-        # 一時ファイルにJSONを保存
-        temp_cred_file = tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json')
-        json.dump(json_data, temp_cred_file)
-        temp_cred_file.close()
-        
-        # 環境変数に一時ファイルのパスを設定
-        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = temp_cred_file.name
-        print("💡 GOOGLE_APPLICATION_CREDENTIALS_JSON から認証情報を正常に復元しました。")
+        # サービスアカウントキーから直接認証オブジェクトを作成
+        credentials = service_account.Credentials.from_service_account_info(info)
+        # JSONキーに書かれているプロジェクトIDを自動で適用する（ズレ防止）
+        PROJECT_ID = info.get("project_id", PROJECT_ID)
+        print(f"💡 サービスアカウント（プロジェクトID: {PROJECT_ID}）を読み込みました。")
     except Exception as e:
         print(f"⚠️ GOOGLE_APPLICATION_CREDENTIALS_JSON の復元中にエラーが発生しました: {e}")
 
 # Google Cloudの認証情報を使用して初期化
-client = genai.Client(
-    vertexai=True,
-    project=PROJECT_ID,
-    location=LOCATION
-)
+if credentials:
+    client = genai.Client(
+        vertexai=True,
+        project=PROJECT_ID,
+        location=LOCATION,
+        credentials=credentials
+    )
+else:
+    client = genai.Client(
+        vertexai=True,
+        project=PROJECT_ID,
+        location=LOCATION
+    )
 
 # ---- ② YouTube動画IDを抽出する関数 ----
 def extract_youtube_video_id(url: str) -> str:
