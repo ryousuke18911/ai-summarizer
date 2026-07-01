@@ -27,8 +27,12 @@ if os.environ.get("GOOGLE_APPLICATION_CREDENTIALS_JSON"):
         cred_json = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS_JSON")
         info = json.loads(cred_json)
         
-        # サービスアカウントキーから直接認証オブジェクトを作成
-        credentials = service_account.Credentials.from_service_account_info(info)
+        # ★ Vertex AI に必要な OAuth スコープを明示的に設定（invalid_scope 対策）
+        SCOPES = ["https://www.googleapis.com/auth/cloud-platform"]
+        credentials = service_account.Credentials.from_service_account_info(
+            info,
+            scopes=SCOPES
+        )
         # JSONキーに書かれているプロジェクトIDを自動で適用する（ズレ防止）
         PROJECT_ID = info.get("project_id", PROJECT_ID)
         print(f"💡 サービスアカウント（プロジェクトID: {PROJECT_ID}）を読み込みました。")
