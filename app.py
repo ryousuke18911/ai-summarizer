@@ -28,6 +28,7 @@ def api_summarize():
         return jsonify({"error": "要約する内容が送られていません。"}), 400
 
     input_content = data["content"]
+    is_youtube = data.get("is_youtube", False)
     
     # 進行状況を保存するシンプルな変数（ローカル環境用）
     current_status = "処理を開始しました..."
@@ -38,12 +39,17 @@ def api_summarize():
         print(f"[PROGRESS] {status}")
 
     try:
-        # 要約コアモジュールを実行
-        result = run_summarizer(input_content, progress_callback=progress_update)
+        # すでにブラウザ側でYouTube字幕が抽出されている場合
+        if is_youtube:
+            from summarizer_core import summarize_large_text
+            result = summarize_large_text(input_content, is_youtube=True, length="詳しく", progress_callback=progress_update)
+        else:
+            # それ以外（Web記事、通常長文）は従来のルート
+            result = run_summarizer(input_content, progress_callback=progress_update)
         
         # 履歴に追加
         history_item = {
-            "input": input_content[:50] + "..." if len(input_content) > 50 else input_content,
+            "input": "🎥 YouTube動画" if is_youtube else (input_content[:50] + "..." if len(input_content) > 50 else input_content),
             "output": result
         }
         summarize_history.append(history_item)
