@@ -7,52 +7,21 @@ import re
 import sys
 import time
 import json
-import tempfile
 import requests
 from bs4 import BeautifulSoup
 from google import genai
-from youtube_transcript_api import YouTubeTranscriptApi
 
-# ---- ① 設定 ----
-PROJECT_ID = "gemini-summarizer-501110"
-LOCATION   = "us-central1"
+# ---- ① Gemini API クライアントの初期化 ----
+# 環境変数 GEMINI_API_KEY からAPIキーを読み込む（クラウド・ローカル両対応）
+_api_key = os.environ.get("GEMINI_API_KEY")
 
-# ---- ①-2 クラウドサーバー用：Google認証情報の自動復元処理 ----
-client = None
-credentials = None
-
-if os.environ.get("GOOGLE_APPLICATION_CREDENTIALS_JSON"):
-    try:
-        from google.oauth2 import service_account
-        cred_json = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS_JSON")
-        info = json.loads(cred_json)
-        
-        # ★ Vertex AI に必要な OAuth スコープを明示的に設定（invalid_scope 対策）
-        SCOPES = ["https://www.googleapis.com/auth/cloud-platform"]
-        credentials = service_account.Credentials.from_service_account_info(
-            info,
-            scopes=SCOPES
-        )
-        # JSONキーに書かれているプロジェクトIDを自動で適用する（ズレ防止）
-        PROJECT_ID = info.get("project_id", PROJECT_ID)
-        print(f"💡 サービスアカウント（プロジェクトID: {PROJECT_ID}）を読み込みました。")
-    except Exception as e:
-        print(f"⚠️ GOOGLE_APPLICATION_CREDENTIALS_JSON の復元中にエラーが発生しました: {e}")
-
-# Google Cloudの認証情報を使用して初期化
-if credentials:
-    client = genai.Client(
-        vertexai=True,
-        project=PROJECT_ID,
-        location=LOCATION,
-        credentials=credentials
-    )
+if _api_key:
+    print(f"💡 GEMINI_API_KEY を検出しました。Gemini API キー方式で初期化します。")
+    client = genai.Client(api_key=_api_key)
 else:
-    client = genai.Client(
-        vertexai=True,
-        project=PROJECT_ID,
-        location=LOCATION
-    )
+    # ローカル環境: Application Default Credentials (gcloud auth) を使用
+    print("⚠️ GEMINI_API_KEY が見つかりません。ADC（gcloud auth）を使用します。")
+    client = genai.Client()
 
 # ---- ② YouTube動画IDを抽出する関数 ----
 def extract_youtube_video_id(url: str) -> str:
