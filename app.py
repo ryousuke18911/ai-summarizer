@@ -3,8 +3,10 @@
 # ============================================================
 
 import os
+import requests
 from flask import Flask, render_template, request, jsonify
 from summarizer_core import run_summarizer
+
 
 app = Flask(__name__)
 
