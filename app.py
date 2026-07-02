@@ -24,7 +24,7 @@ def index():
 def api_youtube_transcript():
     """
     YouTube動画の字幕をサーバー側で取得するAPI
-    - 動画ページのytInitialPlayerResponseから字幕URLを抽出する確実な方法
+    - summarizer_core.py の共通ロジックを呼び出す
     """
     data = request.json
     video_id = data.get("video_id", "").strip()
@@ -33,66 +33,8 @@ def api_youtube_transcript():
         return jsonify({"status": "error", "error": "動画IDが指定されていません。"}), 400
 
     try:
-        import json as json_lib
-        import re
-        import xml.etree.ElementTree as ET
-        import html as html_lib
-
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Accept-Language": "ja,en-US;q=0.9,en;q=0.8",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        }
-
-        # ① 動画ページを取得
-        video_url = f"https://www.youtube.com/watch?v={video_id}"
-        resp = requests.get(video_url, headers=headers, timeout=20)
-        if not resp.ok:
-            return jsonify({"status": "error", "error": f"動画ページの取得に失敗しました (HTTP {resp.status_code})"}), 400
-
-        # ② ytInitialPlayerResponseからキャプションデータを抽出
-        match = re.search(r'ytInitialPlayerResponse\s*=\s*(\{.+?\})\s*;', resp.text)
-        if not match:
-            return jsonify({"status": "error", "error": "動画データの解析に失敗しました。ページ構造が変更された可能性があります。"}), 400
-
-        player_data = json_lib.loads(match.group(1))
-        captions = player_data.get("captions", {})
-        caption_tracks = captions.get("playerCaptionsTracklistRenderer", {}).get("captionTracks", [])
-
-        if not caption_tracks:
-            return jsonify({"status": "error", "error": "この動画には字幕が設定されていません。"}), 400
-
-        # ③ 日本語・英語の字幕を優先して選択
-        preferred_track = None
-        for lang_prefix in ["ja", "en"]:
-            for track in caption_tracks:
-                if track.get("languageCode", "").startswith(lang_prefix):
-                    preferred_track = track
-                    break
-            if preferred_track:
-                break
-        if not preferred_track:
-            preferred_track = caption_tracks[0]  # どれもなければ最初のもの
-
-        # ④ 字幕XMLを取得してテキスト抽出
-        base_url = preferred_track.get("baseUrl", "")
-        if not base_url:
-            return jsonify({"status": "error", "error": "字幕URLが見つかりませんでした。"}), 400
-
-        transcript_resp = requests.get(base_url, headers=headers, timeout=15)
-        if not transcript_resp.ok:
-            return jsonify({"status": "error", "error": "字幕データの取得に失敗しました。"}), 400
-
-        root = ET.fromstring(transcript_resp.text)
-        texts = []
-        for elem in root.findall("text"):
-            if elem.text:
-                texts.append(html_lib.unescape(elem.text))
-
-        if not texts:
-            return jsonify({"status": "error", "error": "字幕の内容が空でした。"}), 400
-
-        transcript_text = " ".join(texts)
+        from summarizer_core import extract_youtube_transcript
+        transcript_text = extract_youtube_transcript(video_id)
         return jsonify({"status": "success", "transcript": transcript_text})
 
     except Exception as e:
