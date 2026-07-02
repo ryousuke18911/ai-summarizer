@@ -22,7 +22,8 @@ def index():
 def api_youtube_transcript():
     """
     YouTube動画の字幕をサーバー側で取得するAPI
-    ブラウザからは直接YouTubeにアクセスできない(CORS)ため、サーバー経由で取得
+    - ライブラリ不要: requestsで直接timedtext APIを呼び出す
+    - サーバー側のためCORS制限なし
     """
     data = request.json
     video_id = data.get("video_id", "").strip()
@@ -31,28 +32,48 @@ def api_youtube_transcript():
         return jsonify({"status": "error", "error": "動画IDが指定されていません。"}), 400
 
     try:
-        from youtube_transcript_api import YouTubeTranscriptApi
+        import xml.etree.ElementTree as ET
+        import html as html_lib
 
-        # 旧API (0.6.x): クラスメソッド方式
-        transcript_data = YouTubeTranscriptApi.get_transcript(
-            video_id,
-            languages=['ja', 'en', 'ja-JP', 'en-US']
-        )
-        transcript_text = " ".join([t['text'] for t in transcript_data])
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept-Language": "ja,en-US;q=0.9,en;q=0.8",
+        }
 
-        if not transcript_text.strip():
-            return jsonify({"status": "error", "error": "字幕の内容が空です。"}), 400
+        # 日本語・英語の字幕URLを優先順に試す
+        candidates = [
+            f"https://www.youtube.com/api/timedtext?v={video_id}&lang=ja",
+            f"https://www.youtube.com/api/timedtext?v={video_id}&lang=en",
+            f"https://www.youtube.com/api/timedtext?v={video_id}&lang=ja&kind=asr",
+            f"https://www.youtube.com/api/timedtext?v={video_id}&lang=en&kind=asr",
+        ]
+
+        transcript_text = ""
+        for url in candidates:
+            try:
+                resp = requests.get(url, headers=headers, timeout=15)
+                if resp.ok and resp.text and "<text" in resp.text:
+                    root = ET.fromstring(resp.text)
+                    texts = []
+                    for elem in root.findall("text"):
+                        if elem.text:
+                            texts.append(html_lib.unescape(elem.text))
+                    if texts:
+                        transcript_text = " ".join(texts)
+                        break
+            except Exception:
+                continue
+
+        if not transcript_text:
+            return jsonify({
+                "status": "error",
+                "error": "日本語・英語の字幕が見つかりませんでした。字幕が有効な動画をお試しください。"
+            }), 400
 
         return jsonify({"status": "success", "transcript": transcript_text})
 
     except Exception as e:
-        error_msg = str(e)
-        if "TranscriptsDisabled" in error_msg or "disabled" in error_msg.lower():
-            return jsonify({"status": "error", "error": "この動画では字幕機能が無効になっています。"}), 400
-        elif "NoTranscriptFound" in error_msg or "Could not find" in error_msg:
-            return jsonify({"status": "error", "error": "日本語・英語の字幕が見つかりませんでした。字幕付きの動画をお試しください。"}), 400
-        else:
-            return jsonify({"status": "error", "error": f"字幕の取得に失敗しました: {error_msg}"}), 500
+        return jsonify({"status": "error", "error": f"字幕の取得に失敗しました: {str(e)}"}), 500
 
 @app.route("/api/summarize", methods=["POST"])
 def api_summarize():
