@@ -51,6 +51,10 @@ document.addEventListener("DOMContentLoaded", () => {
         showError("正しいURLを入力してください（https:// から始まる形式）。");
         return;
       }
+      if (currentTab === "text" && (content.startsWith("http://") || content.startsWith("https://"))) {
+        showError("テキスト入力欄にURLが入力されています。Web記事の要約は「Web記事URL」タブを使用してください。");
+        return;
+      }
 
       // Loading state
       setLoading(true, "解析中...");
@@ -69,7 +73,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const res = await fetch("/api/summarize", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ content })
+          body: JSON.stringify({ content, type: currentTab })
         });
 
         clearInterval(ticker);
