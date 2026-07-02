@@ -1,190 +1,134 @@
 /* ============================================================
-   AI Multi-Summarizer - main.js (Async UI Interaction)
+   AI要約ツール - main.js
    ============================================================ */
 
 document.addEventListener("DOMContentLoaded", () => {
-    const inputContent = document.getElementById("input-content");
-    const submitBtn = document.getElementById("submit-btn");
+  // ---- Elements ----
+  const tabs        = document.querySelectorAll(".tab");
+  const panels      = document.querySelectorAll(".tab-panel");
+  const urlInput    = document.getElementById("url-input");
+  const textInput   = document.getElementById("text-input");
+  const btn         = document.getElementById("summarize-btn");
+  const btnText     = btn.querySelector(".btn-text");
+  const resultBody  = document.getElementById("result-body");
+  const copyBtn     = document.getElementById("copy-btn");
+  const charCount   = document.getElementById("char-count");
 
-    const resultPanel = document.getElementById("result-panel");
-    const resultContent = document.getElementById("result-content");
-    const copyBtn = document.getElementById("copy-btn");
+  let currentTab = "url";
 
-    const historyList = document.getElementById("history-list");
-
-    // 履歴を読み込む関数
-    const loadHistory = async () => {
-        try {
-            const response = await fetch("/api/history");
-            const history = await response.json();
-
-            if (history.length > 0) {
-                historyList.innerHTML = "";
-                history.reverse().forEach((item) => {
-                    const div = document.createElement("div");
-                    div.className = "history-item";
-                    div.innerText = item.input;
-                    div.addEventListener("click", () => {
-                        resultContent.innerHTML = formatMarkdown(item.output);
-                        resultPanel.scrollIntoView({ behavior: "smooth" });
-                    });
-                    historyList.appendChild(div);
-                });
-            }
-        } catch (err) {
-            console.error("履歴の取得に失敗しました", err);
-        }
-    };
-
-    // 初期起動時に履歴をロード
-    loadHistory();
-
-    // URLがYouTubeのものか判定するヘルパー関数
-    function getYoutubeId(url) {
-        const regExp = /^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|shorts\/|watch\?v=|&v=)([^#&?]*).*/;
-        const match = url.match(regExp);
-        return (match && match[2].length === 11) ? match[2] : null;
-    }
-
-    // サーバー経由でYouTube字幕を取得する関数（CORSを回避）
-    async function fetchYoutubeTranscriptFromServer(videoId) {
-        const response = await fetch("/api/youtube-transcript", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ video_id: videoId })
-        });
-        const data = await response.json();
-        if (data.status !== "success") {
-            throw new Error(data.error || "字幕の取得に失敗しました。");
-        }
-        return data.transcript;
-    }
-
-    // 要約ボタンクリック時の処理
-    submitBtn.addEventListener("click", async () => {
-        const text = inputContent.value.trim();
-        if (!text) {
-            alert("要約する内容（URLまたは文章）を入力してください。");
-            return;
-        }
-
-        // UIを「要約中」状態に切り替え
-        submitBtn.disabled = true;
-        resultContent.innerHTML = `
-            <div class="embedded-loader">
-                <div class="pulse-loader"></div>
-                <span class="status-msg">URLまたはテキストを解析中...</span>
-            </div>
-        `;
-
-        // 進捗表示アニメーション
-        let progressStep = 0;
-        const progressMessages = [
-            "データを取得しています...",
-            "AIモデルを呼び出し中...",
-            "要約結果をまとめています..."
-        ];
-
-        const progressInterval = setInterval(() => {
-            if (progressStep < progressMessages.length) {
-                const loader = resultContent.querySelector(".status-msg");
-                if (loader) loader.innerText = progressMessages[progressStep];
-                progressStep++;
-            }
-        }, 3000);
-
-        try {
-            let requestPayload = { content: text, is_youtube: false };
-
-            // YouTubeのURLなら、サーバー経由で字幕を取得
-            const youtubeId = getYoutubeId(text);
-            if (youtubeId) {
-                const loader = resultContent.querySelector(".status-msg");
-                if (loader) loader.innerText = "YouTubeの字幕をサーバーから取得中...";
-
-                try {
-                    const transcript = await fetchYoutubeTranscriptFromServer(youtubeId);
-                    requestPayload.content = transcript;
-                    requestPayload.is_youtube = true;
-                } catch (ytErr) {
-                    clearInterval(progressInterval);
-                    submitBtn.disabled = false;
-                    resultContent.innerHTML = `<p class="placeholder-text error-text">❌ YouTube字幕取得エラー: ${ytErr.message}</p>`;
-                    return;
-                }
-            }
-
-            // サーバーに要約リクエストを送信
-            const loader2 = resultContent.querySelector(".status-msg");
-            if (loader2) loader2.innerText = "AIが要約を作成中...";
-
-            const response = await fetch("/api/summarize", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(requestPayload)
-            });
-
-            clearInterval(progressInterval);
-            const data = await response.json();
-
-            if (data.status === "success") {
-                // 成功：結果を表示
-                resultContent.innerHTML = formatMarkdown(data.result);
-                loadHistory();
-                resultPanel.scrollIntoView({ behavior: "smooth" });
-            } else {
-                // エラー発生
-                resultContent.innerHTML = `<p class="placeholder-text error-text">❌ エラー: ${data.error}</p>`;
-            }
-
-        } catch (err) {
-            clearInterval(progressInterval);
-            resultContent.innerHTML = `<p class="placeholder-text error-text">❌ 通信エラーが発生しました。</p>`;
-        } finally {
-            submitBtn.disabled = false;
-        }
+  // ---- Tab switching ----
+  tabs.forEach(tab => {
+    tab.addEventListener("click", () => {
+      currentTab = tab.dataset.tab;
+      tabs.forEach(t => t.classList.remove("active"));
+      panels.forEach(p => p.classList.remove("active"));
+      tab.classList.add("active");
+      document.getElementById(`panel-${currentTab}`).classList.add("active");
     });
+  });
 
-    // コピーボタンの処理
-    copyBtn.addEventListener("click", () => {
-        const textToCopy = resultContent.innerText;
-        navigator.clipboard.writeText(textToCopy).then(() => {
-            const originalText = copyBtn.innerText;
-            copyBtn.innerText = "コピーしました！";
-            setTimeout(() => { copyBtn.innerText = originalText; }, 2000);
-        }).catch(() => {
-            alert("コピーに失敗しました。ブラウザの権限を確認してください。");
-        });
-    });
+  // ---- Character counter (text mode) ----
+  textInput.addEventListener("input", () => {
+    const len = textInput.value.length;
+    charCount.textContent = len > 0 ? `${len.toLocaleString()} 文字` : "";
+  });
 
-    // マークダウンの簡単なHTML変換関数
-    function formatMarkdown(text) {
-        if (!text) return "";
-        let formatted = text
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;");
+  // ---- Summarize ----
+  btn.addEventListener("click", async () => {
+    const content = currentTab === "url" ? urlInput.value.trim() : textInput.value.trim();
 
-        // 見出しの変換
-        formatted = formatted.replace(/^###\s+(.*)$/gm, "<h3>$1</h3>");
-        formatted = formatted.replace(/^##\s+(.*)$/gm, "<h2>$1</h2>");
-        formatted = formatted.replace(/^#\s+(.*)$/gm, "<h1>$1</h1>");
-
-        // 強調表示
-        formatted = formatted.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
-
-        // 箇条書き
-        formatted = formatted.replace(/^\s*[\*\-]\s+(.*)$/gm, "<li>$1</li>");
-        formatted = formatted.replace(/(<li>.*<\/li>)/gs, "<ul>$1<\/ul>");
-
-        // 改行
-        formatted = formatted.split("\n").map(line => {
-            if (line.trim().startsWith("<h") || line.trim().startsWith("<u") || line.trim().startsWith("<l")) {
-                return line;
-            }
-            return line + "<br>";
-        }).join("\n");
-
-        return formatted;
+    if (!content) {
+      showError(currentTab === "url" ? "URLを入力してください。" : "テキストを入力してください。");
+      return;
     }
+    if (currentTab === "url" && !content.startsWith("http")) {
+      showError("正しいURLを入力してください（https:// から始まる形式）。");
+      return;
+    }
+
+    // Loading state
+    setLoading(true, "解析中...");
+
+    const messages = [
+      "コンテンツを取得中...",
+      "AIが要約を作成中...",
+      "もうすぐ完了します..."
+    ];
+    let msgIdx = 0;
+    const ticker = setInterval(() => {
+      if (++msgIdx < messages.length) setLoading(true, messages[msgIdx]);
+    }, 4000);
+
+    try {
+      const res = await fetch("/api/summarize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content })
+      });
+
+      clearInterval(ticker);
+      const data = await res.json();
+
+      if (data.status === "success") {
+        showResult(data.result);
+      } else {
+        showError(data.error || "不明なエラーが発生しました。");
+      }
+    } catch (e) {
+      clearInterval(ticker);
+      showError("通信エラーが発生しました。しばらくしてから再試行してください。");
+    } finally {
+      setLoading(false);
+    }
+  });
+
+  // ---- Copy ----
+  copyBtn.addEventListener("click", () => {
+    const text = resultBody.innerText;
+    if (!text || resultBody.querySelector(".placeholder")) return;
+    navigator.clipboard.writeText(text).then(() => {
+      copyBtn.textContent = "✓ コピー完了";
+      setTimeout(() => { copyBtn.textContent = "コピー"; }, 2000);
+    });
+  });
+
+  // ---- Helpers ----
+  function setLoading(active, msg = "") {
+    btn.disabled = active;
+    btnText.textContent = active ? "要約中..." : "要約する";
+    if (active) {
+      resultBody.innerHTML = `
+        <div class="loading-state">
+          <div class="spinner"></div>
+          <span class="loading-msg">${msg}</span>
+        </div>`;
+    }
+  }
+
+  function showResult(text) {
+    resultBody.innerHTML = `<div class="result-content">${formatMarkdown(text)}</div>`;
+  }
+
+  function showError(msg) {
+    resultBody.innerHTML = `<div class="error-msg">❌ ${escapeHtml(msg)}</div>`;
+  }
+
+  function escapeHtml(str) {
+    return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  }
+
+  function formatMarkdown(text) {
+    let t = escapeHtml(text);
+    t = t.replace(/^###\s+(.+)$/gm, "<h3>$1</h3>");
+    t = t.replace(/^##\s+(.+)$/gm,  "<h2>$1</h2>");
+    t = t.replace(/^#\s+(.+)$/gm,   "<h1>$1</h1>");
+    t = t.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+    t = t.replace(/^\s*[-*]\s+(.+)$/gm, "<li>$1</li>");
+    t = t.replace(/(<li>[\s\S]*?<\/li>)/g, "<ul>$1</ul>");
+    t = t.split("\n").map(line => {
+      if (/^<[hul]/.test(line.trim())) return line;
+      return line + "<br>";
+    }).join("\n");
+    return t;
+  }
 });
