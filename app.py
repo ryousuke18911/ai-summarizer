@@ -31,14 +31,14 @@ def api_youtube_transcript():
         return jsonify({"status": "error", "error": "動画IDが指定されていません。"}), 400
 
     try:
-        from youtube_transcript_api import YouTubeTranscriptApi, NoTranscriptFound, TranscriptsDisabled
+        from youtube_transcript_api import YouTubeTranscriptApi
 
-        # 日本語 → 英語 の優先順位で字幕を取得
-        transcript_list = YouTubeTranscriptApi.get_transcript(
+        # 旧API (0.6.x): クラスメソッド方式
+        transcript_data = YouTubeTranscriptApi.get_transcript(
             video_id,
             languages=['ja', 'en', 'ja-JP', 'en-US']
         )
-        transcript_text = " ".join([t['text'] for t in transcript_list])
+        transcript_text = " ".join([t['text'] for t in transcript_data])
 
         if not transcript_text.strip():
             return jsonify({"status": "error", "error": "字幕の内容が空です。"}), 400
