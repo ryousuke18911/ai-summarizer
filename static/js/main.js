@@ -9,7 +9,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const urlInput    = document.getElementById("url-input");
   const textInput   = document.getElementById("text-input");
   const btn         = document.getElementById("summarize-btn");
-  const btnText     = btn.querySelector(".btn-text");
+  const btnText     = btn ? btn.querySelector(".btn-text") : null;
   const resultBody  = document.getElementById("result-body");
   const copyBtn     = document.getElementById("copy-btn");
   const charCount   = document.getElementById("char-count");
@@ -23,80 +23,93 @@ document.addEventListener("DOMContentLoaded", () => {
       tabs.forEach(t => t.classList.remove("active"));
       panels.forEach(p => p.classList.remove("active"));
       tab.classList.add("active");
-      document.getElementById(`panel-${currentTab}`).classList.add("active");
+      const panel = document.getElementById(`panel-${currentTab}`);
+      if (panel) panel.classList.add("active");
     });
   });
 
   // ---- Character counter (text mode) ----
-  textInput.addEventListener("input", () => {
-    const len = textInput.value.length;
-    charCount.textContent = len > 0 ? `${len.toLocaleString()} 文字` : "";
-  });
+  if (textInput && charCount) {
+    textInput.addEventListener("input", () => {
+      const len = textInput.value.length;
+      charCount.textContent = len > 0 ? `${len.toLocaleString()} 文字` : "";
+    });
+  }
 
   // ---- Summarize ----
-  btn.addEventListener("click", async () => {
-    const content = currentTab === "url" ? urlInput.value.trim() : textInput.value.trim();
+  if (btn) {
+    btn.addEventListener("click", async () => {
+      const content = currentTab === "url" 
+        ? (urlInput ? urlInput.value.trim() : "") 
+        : (textInput ? textInput.value.trim() : "");
 
-    if (!content) {
-      showError(currentTab === "url" ? "URLを入力してください。" : "テキストを入力してください。");
-      return;
-    }
-    if (currentTab === "url" && !content.startsWith("http")) {
-      showError("正しいURLを入力してください（https:// から始まる形式）。");
-      return;
-    }
-
-    // Loading state
-    setLoading(true, "解析中...");
-
-    const messages = [
-      "コンテンツを取得中...",
-      "AIが要約を作成中...",
-      "もうすぐ完了します..."
-    ];
-    let msgIdx = 0;
-    const ticker = setInterval(() => {
-      if (++msgIdx < messages.length) setLoading(true, messages[msgIdx]);
-    }, 4000);
-
-    try {
-      const res = await fetch("/api/summarize", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content })
-      });
-
-      clearInterval(ticker);
-      const data = await res.json();
-
-      if (data.status === "success") {
-        showResult(data.result);
-      } else {
-        showError(data.error || "不明なエラーが発生しました。");
+      if (!content) {
+        showError(currentTab === "url" ? "URLを入力してください。" : "テキストを入力してください。");
+        return;
       }
-    } catch (e) {
-      clearInterval(ticker);
-      showError("通信エラーが発生しました。しばらくしてから再試行してください。");
-    } finally {
-      setLoading(false);
-    }
-  });
+      if (currentTab === "url" && !content.startsWith("http")) {
+        showError("正しいURLを入力してください（https:// から始まる形式）。");
+        return;
+      }
+
+      // Loading state
+      setLoading(true, "解析中...");
+
+      const messages = [
+        "コンテンツを取得中...",
+        "AIが要約を作成中...",
+        "もうすぐ完了します..."
+      ];
+      let msgIdx = 0;
+      const ticker = setInterval(() => {
+        if (++msgIdx < messages.length) setLoading(true, messages[msgIdx]);
+      }, 4000);
+
+      try {
+        const res = await fetch("/api/summarize", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content })
+        });
+
+        clearInterval(ticker);
+        const data = await res.json();
+
+        if (data.status === "success") {
+          showResult(data.result);
+        } else {
+          showError(data.error || "不明なエラーが発生しました。");
+        }
+      } catch (e) {
+        clearInterval(ticker);
+        showError("通信エラーが発生しました。しばらくしてから再試行してください。");
+      } finally {
+        setLoading(false);
+      }
+    });
+  }
 
   // ---- Copy ----
-  copyBtn.addEventListener("click", () => {
-    const text = resultBody.innerText;
-    if (!text || resultBody.querySelector(".placeholder")) return;
-    navigator.clipboard.writeText(text).then(() => {
-      copyBtn.textContent = "✓ コピー完了";
-      setTimeout(() => { copyBtn.textContent = "コピー"; }, 2000);
+  if (copyBtn && resultBody) {
+    copyBtn.addEventListener("click", () => {
+      const text = resultBody.innerText;
+      if (!text || resultBody.querySelector(".placeholder")) return;
+      navigator.clipboard.writeText(text).then(() => {
+        copyBtn.textContent = "✓ コピー完了";
+        setTimeout(() => { copyBtn.textContent = "コピー"; }, 2000);
+      });
     });
-  });
+  }
 
   // ---- Helpers ----
   function setLoading(active, msg = "") {
-    btn.disabled = active;
-    btnText.textContent = active ? "要約中..." : "要約する";
-    if (active) {
+    if (btn) btn.disabled = active;
+    if (btnText) {
+      btnText.textContent = active ? "要約中..." : "要約する";
+    } else if (btn) {
+      btn.textContent = active ? "要約中..." : "要約する";
+    }
+    if (active && resultBody) {
       resultBody.innerHTML = `
         <div class="loading-state">
           <div class="spinner"></div>
@@ -106,11 +119,15 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function showResult(text) {
-    resultBody.innerHTML = `<div class="result-content">${formatMarkdown(text)}</div>`;
+    if (resultBody) {
+      resultBody.innerHTML = `<div class="result-content">${formatMarkdown(text)}</div>`;
+    }
   }
 
   function showError(msg) {
-    resultBody.innerHTML = `<div class="error-msg">❌ ${escapeHtml(msg)}</div>`;
+    if (resultBody) {
+      resultBody.innerHTML = `<div class="error-msg">❌ ${escapeHtml(msg)}</div>`;
+    }
   }
 
   function escapeHtml(str) {
