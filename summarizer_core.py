@@ -11,7 +11,8 @@ from bs4 import BeautifulSoup
 
 # ---- ① Groq API設定 ----
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
-GROQ_MODEL   = "llama-3.3-70b-versatile"  # 高品質・無料モデル
+# llama-3.1-8b-instant は無料枠のトークン制限(TPM)が 70b-versatile の30倍緩いため、429エラーを防止できます
+GROQ_MODEL   = "llama-3.1-8b-instant"
 
 def _get_api_key() -> str:
     """環境変数からGroq APIキーを取得する"""
@@ -24,7 +25,7 @@ def _get_api_key() -> str:
     return api_key
 
 def _call_ai(prompt: str) -> str:
-    """Groq REST APIを呼び出してテキストを生成する"""
+    """Groq REST APIを呼び出してテキストを生成する（429エラーのリトライ付）"""
     api_key = _get_api_key()
     headers = {
         "Content-Type": "application/json",
@@ -35,7 +36,7 @@ def _call_ai(prompt: str) -> str:
         "messages": [
             {
                 "role": "system",
-                "content": "あなたは日本語のテキスト要約 of 専門家です。与えられた内容を分かりやすく日本語で要約してください。"
+                "content": "あなたは日本語のテキスト要約の専門家です。与えられた内容を分かりやすく日本語で要約してください。"
             },
             {
                 "role": "user",
@@ -45,10 +46,31 @@ def _call_ai(prompt: str) -> str:
         "temperature": 0.7,
         "max_tokens": 8192,
     }
-    response = requests.post(GROQ_API_URL, headers=headers, json=payload, timeout=120)
-    response.raise_for_status()
-    data = response.json()
-    return data["choices"][0]["message"]["content"]
+
+    max_retries = 3
+    retry_delay = 3  # 秒
+
+    for attempt in range(max_retries):
+        try:
+            response = requests.post(GROQ_API_URL, headers=headers, json=payload, timeout=120)
+            
+            # レートリミット(429)の場合、待機してリトライ
+            if response.status_code == 429:
+                print(f"[WARN] Groq API 429 Too Many Requests. リトライします ({attempt + 1}/{max_retries})...")
+                time.sleep(retry_delay * (attempt + 1))
+                continue
+                
+            response.raise_for_status()
+            data = response.json()
+            return data["choices"][0]["message"]["content"]
+            
+        except Exception as e:
+            if attempt == max_retries - 1:
+                raise e
+            print(f"[WARN] API呼び出しエラー: {e}. リトライします ({attempt + 1}/{max_retries})...")
+            time.sleep(retry_delay)
+            
+    raise RuntimeError("APIの呼び出しに失敗しました。時間をおいて再度お試しください。")
 
 # ---- ② Webページから本文を抜き出す関数 ----
 def extract_text_from_url(url: str) -> str:
@@ -98,20 +120,29 @@ def extract_youtube_transcript(video_id: str) -> str:
     video_url = f"https://www.youtube.com/watch?v={video_id}"
     resp = requests.get(video_url, headers=headers, timeout=20)
     if not resp.ok:
-        raise RuntimeError(f"動画ページの取得に失敗しました (HTTP {resp.status_code})")
+        raise RuntimeError(f"YouTube動画ページの取得に失敗しました (HTTP {resp.status_code})")
 
     # ytInitialPlayerResponseからキャプションデータを抽出
     match = re.search(r'ytInitialPlayerResponse\s*=\s*(\{.+?\})\s*;', resp.text)
     if not match:
-        raise RuntimeError("動画データの解析に失敗しました。字幕が有効な動画ではないか、YouTubeの仕様が変更された可能性があります。")
+        # YouTube側で制限がかかっているか、動画が存在しない場合
+        raise RuntimeError("動画データの解析に失敗しました。YouTubeからアクセスが一時的に制限されているか、無効な動画URLの可能性があります。")
 
     import json as json_lib
     player_data = json_lib.loads(match.group(1))
+    
+    # プレイアビリティ（再生制限など）のチェック
+    playability = player_data.get("playabilityStatus", {})
+    status = playability.get("status", "")
+    if status == "ERROR":
+        reason = playability.get("reason", "この動画は再生できません")
+        raise ValueError(f"YouTubeエラー: {reason}")
+
     captions = player_data.get("captions", {})
     caption_tracks = captions.get("playerCaptionsTracklistRenderer", {}).get("captionTracks", [])
 
     if not caption_tracks:
-        raise ValueError("この動画には字幕が設定されていません。字幕が有効な別の動画をお試しください。")
+        raise ValueError("この動画には字幕が設定されていないか、サーバーからの自動字幕取得が制限されています。字幕が有効な別の動画をお試しください。")
 
     # 日本語・英語の字幕を優先して選択
     preferred_track = None
