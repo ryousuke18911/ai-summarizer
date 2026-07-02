@@ -87,7 +87,7 @@ def summarize(text: str, progress_callback=None) -> str:
     combined = "\n\n".join([f"【パート{i+1}】\n{s}" for i, s in enumerate(summaries)])
     return _call_ai(f"以下は長い文章を分割して要約したものです。全体を通して分かりやすく日本語でまとめてください。\n\n{combined}")
 
-def run_summarizer(input_content: str, progress_callback=None) -> str:
+def run_summarizer(input_content: str, req_type: str = "text", progress_callback=None) -> str:
     """メインの要約インターフェース"""
     input_content = input_content.strip()
     if not input_content:
@@ -95,14 +95,18 @@ def run_summarizer(input_content: str, progress_callback=None) -> str:
 
     is_url = input_content.startswith("http://") or input_content.startswith("https://")
 
-    if is_url:
+    if req_type == "url":
+        if not is_url:
+            raise ValueError("URLの形式が正しくありません。http:// または https:// から始まるURLを入力してください。")
         if progress_callback:
             progress_callback("Webページから本文を抽出中...")
         try:
             text = extract_text_from_url(input_content)
         except Exception as e:
             raise RuntimeError(f"Webページの取得に失敗しました: {e}")
-    else:
+    else: # "text"
+        if is_url:
+            raise ValueError("長文テキスト入力欄にURLが入力されています。URLは「Web記事URL」タブに入力してください。")
         text = input_content
 
     return summarize(text, progress_callback=progress_callback)

@@ -19,6 +19,7 @@ def api_summarize():
         return jsonify({"status": "error", "error": "内容が送られていません。"}), 400
 
     content = data["content"].strip()
+    req_type = data.get("type", "text").strip()
     if not content:
         return jsonify({"status": "error", "error": "入力が空です。"}), 400
 
@@ -26,7 +27,7 @@ def api_summarize():
         print(f"[PROGRESS] {msg}")
 
     try:
-        result = run_summarizer(content, progress_callback=on_progress)
+        result = run_summarizer(content, req_type=req_type, progress_callback=on_progress)
         return jsonify({"status": "success", "result": result})
     except Exception as e:
         print(f"[ERROR] {e}")
