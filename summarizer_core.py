@@ -1,202 +1,108 @@
 # ============================================================
-#  AI要約ツール - summarizer_core.py (Web/API共有コアロジック)
+#  AI要約ツール - summarizer_core.py
+#  AI: Groq (llama-3.3-70b-versatile)
 # ============================================================
 
 import os
-import re
-import sys
 import time
-import json
-import tempfile
 import requests
 from bs4 import BeautifulSoup
-from google import genai
-from youtube_transcript_api import YouTubeTranscriptApi
 
-# ---- ① 設定 ----
-PROJECT_ID = "gemini-summarizer-501110"
-LOCATION   = "us-central1"
+GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
+GROQ_MODEL   = "llama-3.3-70b-versatile"
 
-# ---- ①-2 クラウドサーバー用：Google認証情報の自動復元処理 ----
-if os.environ.get("GOOGLE_APPLICATION_CREDENTIALS_JSON"):
-    try:
-        cred_json = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS_JSON")
-        json_data = json.loads(cred_json)
-        
-        # 一時ファイルにJSONを保存
-        temp_cred_file = tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json')
-        json.dump(json_data, temp_cred_file)
-        temp_cred_file.close()
-        
-        # 環境変数に一時ファイルのパスを設定
-        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = temp_cred_file.name
-        print("💡 GOOGLE_APPLICATION_CREDENTIALS_JSON から認証情報を正常に復元しました。")
-    except Exception as e:
-        print(f"⚠️ GOOGLE_APPLICATION_CREDENTIALS_JSON の復元中にエラーが発生しました: {e}")
+def _get_api_key() -> str:
+    api_key = os.environ.get("GROQ_API_KEY")
+    if not api_key:
+        raise ValueError("GROQ_API_KEY が設定されていません。Renderの環境変数を確認してください。")
+    return api_key
 
-# Google Cloudの認証情報を使用して初期化
-client = genai.Client(
-    vertexai=True,
-    project=PROJECT_ID,
-    location=LOCATION
-)
-
-# ---- ② YouTube動画IDを抽出する関数 ----
-def extract_youtube_video_id(url: str) -> str:
-    patterns = [
-        r'(?:v=|\/embed\/|\/shorts\/|youtu\.be\/)([a-zA-Z0-9_-]{11})'
-    ]
-    for pattern in patterns:
-        match = re.search(pattern, url)
-        if match:
-            return match.group(1)
-    return ""
-
-# ---- ③ YouTubeの字幕を取得する関数 ----
-def get_youtube_transcript(video_id: str) -> str:
-    try:
-        api = YouTubeTranscriptApi()
-        transcript_list = api.list(video_id)
-        transcript = transcript_list.find_transcript(['ja', 'en'])
-        data = transcript.fetch()
-        text = " ".join([item.text for item in data])
-        return text
-    except Exception as e:
-        raise ValueError(f"YouTubeの字幕を取得できませんでした。字幕機能がオフになっている可能性があります。({e})")
-
-# ---- ④ Webページから本文を抜き出す関数 ----
-def extract_text_from_url(url: str) -> str:
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
-        "Accept-Language": "ja,en-US;q=0.9,en;q=0.8",
-        "Referer": "https://www.google.com/",
-        "Connection": "keep-alive"
-    }
-    try:
-        response = requests.get(url, headers=headers, timeout=10)
-        response.raise_for_status()
-        response.encoding = response.apparent_encoding
-        
-        soup = BeautifulSoup(response.text, "html.parser")
-        
-        for trash in soup(["script", "style", "header", "footer", "nav", "aside", "form", "iframe"]):
-            trash.decompose()
-            
-        lines = []
-        for element in soup.find_all(["h1", "h2", "h3", "h4", "p"]):
-            text = element.get_text().strip()
-            if text:
-                lines.append(text)
-                
-        article_text = "\n".join(lines)
-        if not article_text.strip():
-            raise ValueError("ウェブページから要約可能なテキストを抽出できませんでした。")
-        return article_text
-    except Exception as e:
-        raise RuntimeError(f"Webページの取得に失敗しました: {e}")
-
-# ---- ⑤ 1つのパートを要約する基本関数 ----
-def summarize_single_chunk(text: str, is_youtube: bool = False, length: str = "短く", custom_instruction: str = "") -> str:
-    if is_youtube:
-        prompt = f"""
-以下のテキストはYouTube動画の音声から書き起こされた字幕です。
-{custom_instruction}
-この内容を日本語で{length}要約してください。重要なポイントを整理してください。
-
-【要約対象のテキスト】
-{text}
-"""
-    else:
-        prompt = f"""
-以下のテキストを日本語で{length}要約してください。
-{custom_instruction}
-重要なポイントを整理してください。
-
-【要約対象のテキスト】
-{text}
-"""
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt
+def _call_ai(prompt: str) -> str:
+    """Groq APIを呼び出してテキスト生成"""
+    response = requests.post(
+        GROQ_API_URL,
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {_get_api_key()}",
+        },
+        json={
+            "model": GROQ_MODEL,
+            "messages": [
+                {"role": "system", "content": "あなたは日本語のテキスト要約の専門家です。"},
+                {"role": "user",   "content": prompt}
+            ],
+            "temperature": 0.5,
+            "max_tokens": 4096,
+        },
+        timeout=120
     )
-    return response.text
+    response.raise_for_status()
+    return response.json()["choices"][0]["message"]["content"]
 
-# ---- ⑦ 巨大なテキストを分割して要約するメイン関数 ----
-def summarize_large_text(text: str, is_youtube: bool = False, length: str = "詳しく", progress_callback=None) -> str:
-    # 1回あたりに送信する文字数（15,000文字で区切る）
-    CHUNK_SIZE = 15000
-    
-    # 15,000文字以下の場合は、従来通り1発で要約する
+def extract_text_from_url(url: str) -> str:
+    """URLからWebページ本文を抽出"""
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept-Language": "ja,en-US;q=0.9,en;q=0.8",
+    }
+    resp = requests.get(url, headers=headers, timeout=15)
+    resp.raise_for_status()
+    resp.encoding = resp.apparent_encoding
+
+    soup = BeautifulSoup(resp.text, "html.parser")
+    for tag in soup(["script", "style", "header", "footer", "nav", "aside", "form", "iframe"]):
+        tag.decompose()
+
+    lines = [el.get_text().strip() for el in soup.find_all(["h1", "h2", "h3", "h4", "p"]) if el.get_text().strip()]
+    text = "\n".join(lines)
+    if not text:
+        raise ValueError("ページから本文を抽出できませんでした。")
+    return text
+
+def summarize(text: str, progress_callback=None) -> str:
+    """テキストを要約する（長い場合は分割処理）"""
+    CHUNK_SIZE = 12000
+
     if len(text) <= CHUNK_SIZE:
         if progress_callback:
-            progress_callback("AIが直接要約を作成中...")
-        return summarize_single_chunk(text, is_youtube, length)
-        
+            progress_callback("AIが要約を作成中...")
+        return _call_ai(f"以下のテキストを日本語で詳しく要約してください。重要なポイントを箇条書きで整理してください。\n\n{text}")
+
+    # 長文：分割して中間要約→最終要約
     chunks = [text[i:i+CHUNK_SIZE] for i in range(0, len(text), CHUNK_SIZE)]
-    total_chunks = len(chunks)
-    
     if progress_callback:
-        progress_callback(f"計 {len(text)} 文字を {total_chunks} パートに分割して要約中...")
-        
-    intermediate_summaries = []
-    
-    for idx, chunk in enumerate(chunks):
+        progress_callback(f"{len(chunks)} パートに分割して要約中...")
+
+    summaries = []
+    for i, chunk in enumerate(chunks):
         if progress_callback:
-            progress_callback(f"パート {idx+1}/{total_chunks} を処理中...")
-            
-        instruction = "これは全体のパートの一部です。この範囲内の重要な会話やトピックを箇条書きで簡潔に抜き出してください。"
-        summary = summarize_single_chunk(chunk, is_youtube, length="短く", custom_instruction=instruction)
-        intermediate_summaries.append(summary)
-        
-        # 1分間のリクエスト回数制限を確実に避けるため、4秒待つ
-        time.sleep(4)
-        
+            progress_callback(f"パート {i+1}/{len(chunks)} を処理中...")
+        s = _call_ai(f"以下は長い文章の一部です。この部分の重要な内容を箇条書きで簡潔に抜き出してください。\n\n{chunk}")
+        summaries.append(s)
+        if i < len(chunks) - 1:
+            time.sleep(1)
+
     if progress_callback:
-        progress_callback("すべてのパートを統合して最終要約を作成中...")
-        
-    combined_summaries = "\n\n".join([f"--- パート {i+1} の内容 ---\n{s}" for i, s in enumerate(intermediate_summaries)])
-    
-    final_prompt = f"""
-以下のテキストは、長い動画（または記事）の各パートの要約です。
-これらをすべて確認した上で、全体を通して「どのような主張や流れだったのか」を分かりやすく体系的に整理した、最終的な要約を日本語で{length}作成してください。
-箇条書きを効果的に使い、全体の結論や重要な教訓がはっきりと伝わるようにしてください。
+        progress_callback("全体の要約を作成中...")
+    combined = "\n\n".join([f"【パート{i+1}】\n{s}" for i, s in enumerate(summaries)])
+    return _call_ai(f"以下は長い文章を分割して要約したものです。全体を通して分かりやすく日本語でまとめてください。\n\n{combined}")
 
-【各パートの要約】
-{combined_summaries}
-"""
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=final_prompt
-    )
-    return response.text
-
-# ---- ⑦ 外部から呼び出すメインのインターフェース ----
 def run_summarizer(input_content: str, progress_callback=None) -> str:
-    """
-    入力内容（URL、YouTubeリンク、通常テキスト）を判定し、要約結果を返す
-    """
+    """メインの要約インターフェース"""
     input_content = input_content.strip()
+    if not input_content:
+        raise ValueError("入力が空です。")
+
     is_url = input_content.startswith("http://") or input_content.startswith("https://")
-    is_youtube = is_url and ("youtube.com" in input_content or "youtu.be" in input_content)
 
-    if is_youtube:
-        video_id = extract_youtube_video_id(input_content)
-        if not video_id:
-            raise ValueError("YouTubeの動画IDを抽出できませんでした。URLを確認してください。")
+    if is_url:
         if progress_callback:
-            progress_callback("YouTubeの字幕を取得中...")
-        text_content = get_youtube_transcript(video_id)
-    elif is_url:
-        if progress_callback:
-            progress_callback("Webサイトから記事の本文を抽出中...")
-        text_content = extract_text_from_url(input_content)
+            progress_callback("Webページから本文を抽出中...")
+        try:
+            text = extract_text_from_url(input_content)
+        except Exception as e:
+            raise RuntimeError(f"Webページの取得に失敗しました: {e}")
     else:
-        text_content = input_content
+        text = input_content
 
-    if not text_content:
-        raise ValueError("要約するテキストが存在しません。")
-
-    # 分割要約を実行
-    result = summarize_large_text(text_content, is_youtube=is_youtube, length="詳しく", progress_callback=progress_callback)
-    return result
+    return summarize(text, progress_callback=progress_callback)

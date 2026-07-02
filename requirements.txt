@@ -1,7 +1,4 @@
-google-genai
-python-dotenv
 flask
 beautifulsoup4
 requests
-youtube-transcript-api
 gunicorn
