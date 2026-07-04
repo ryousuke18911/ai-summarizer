@@ -2,3 +2,7 @@ flask
 beautifulsoup4
 requests
 gunicorn
+python-dotenv
+youtube-transcript-api
+yt-dlp
+imageio-ffmpeg

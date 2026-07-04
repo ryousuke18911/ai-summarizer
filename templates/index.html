@@ -3,8 +3,20 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AI 要約ツール | Web記事・長文を瞬時に要約</title>
-  <meta name="description" content="AIが長い記事やテキストを瞬時に日本語で要約します。Web記事のURLを貼るだけ、または長文テキストを入力するだけで要約完了。">
+  <title>AI 要約ツール | Web記事・YouTube・長文を瞬時に要約</title>
+  <meta name="description" content="AIが長い記事やYouTube動画、長文テキストを瞬時に日本語で要約します。URLを貼るだけ、または長文テキストを入力するだけで要約完了。">
+
+  <!-- PWA / ホーム画面アイコン -->
+  <link rel="manifest" href="/static/manifest.json">
+  <meta name="theme-color" content="#0a0a12">
+  <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/static/icons/favicon-16.png">
+  <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="AI要約">
+  <meta name="mobile-web-app-capable" content="yes">
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;700&family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/css/style.css">
@@ -22,19 +34,19 @@
         <span class="logo-icon">✦</span>
         <span class="logo-text">AI <strong>要約ツール</strong></span>
       </div>
-      <p class="tagline">Web記事・長文テキストをAIが瞬時に要約</p>
+      <p class="tagline">Web記事・YouTube・長文テキストをAIが瞬時に要約</p>
     </header>
 
     <main class="main">
       <div class="card input-card">
         <div class="tabs">
-          <button class="tab active" data-tab="url">🌐 Web記事URL</button>
+          <button class="tab active" data-tab="url">🌐 URL</button>
           <button class="tab" data-tab="text">📄 テキスト入力</button>
         </div>
 
         <div class="tab-panel active" id="panel-url">
           <div class="input-group">
-            <label class="input-label">記事のURLを貼り付けてください</label>
+            <label class="input-label">記事やYouTube動画のURLを貼り付けてください</label>
             <input
               type="url"
               id="url-input"
@@ -42,6 +54,13 @@
               placeholder="https://..."
               autocomplete="off"
             >
+          </div>
+          <div class="yt-preview" id="yt-preview" hidden>
+            <img id="yt-thumb" class="yt-thumb" alt="動画サムネイル">
+            <div class="yt-info">
+              <span class="yt-badge">▶ YouTube</span>
+              <p class="yt-title" id="yt-title"></p>
+            </div>
           </div>
         </div>
 
@@ -57,6 +76,11 @@
           </div>
         </div>
 
+        <div class="style-toggle" role="group" aria-label="要約の詳しさ">
+          <button type="button" class="style-btn" data-style="concise">⚡ サクッと要約</button>
+          <button type="button" class="style-btn active" data-style="detailed">📖 しっかり要約</button>
+        </div>
+
         <button class="summarize-btn" id="summarize-btn">
           <span class="btn-icon">✦</span>
           <span class="btn-text">要約する</span>
@@ -66,7 +90,10 @@
       <div class="card result-card" id="result-card">
         <div class="result-header">
           <h2 class="result-title">✨ 要約結果</h2>
-          <button class="copy-btn" id="copy-btn">コピー</button>
+          <div class="result-actions">
+            <button class="copy-btn" id="copy-btn">コピー</button>
+            <button class="download-btn" id="download-btn">⬇ ダウンロード</button>
+          </div>
         </div>
         <div class="result-body" id="result-body">
           <div class="placeholder">
