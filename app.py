@@ -19,7 +19,11 @@ def api_summarize():
         return jsonify({"status": "error", "error": "内容が送られていません。"}), 400
 
     content = data["content"].strip()
-    req_type = data.get("type", "text").strip()
+    # ブラウザキャッシュで古いJSが動き、typeが送られてこない場合の自動判別フォールバック
+    is_url = content.startswith("http://") or content.startswith("https://")
+    default_type = "url" if is_url else "text"
+    req_type = data.get("type", default_type).strip()
+    
     if not content:
         return jsonify({"status": "error", "error": "入力が空です。"}), 400
 
