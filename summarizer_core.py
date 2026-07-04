@@ -16,6 +16,11 @@ GROQ_MODEL         = "llama-3.3-70b-versatile"
 GROQ_WHISPER_URL   = "https://api.groq.com/openai/v1/audio/transcriptions"
 GROQ_WHISPER_MODEL = "whisper-large-v3-turbo"
 
+# YouTube要約機能: 実装済みだが、RenderのサーバーIPがYouTube側から
+# ブロックされ字幕・音声のどちらも取得できないため、現在は無効化している。
+# ホスティング環境が変わる等で状況が変わった場合はTrueにすれば再度使える。
+YOUTUBE_FEATURE_ENABLED  = False
+
 CHUNK_SIZE               = 4000       # AIに一度に渡すテキストの文字数（無料枠のレート制限に収まるよう抑えめに設定）
 AUDIO_CHUNK_SEC          = 20 * 60     # 音声を分割する長さ（20分）
 MAX_YOUTUBE_DURATION_SEC = 4 * 60 * 60  # 対応する動画の長さの上限（4時間）
@@ -338,7 +343,7 @@ def run_summarizer(input_content: str, req_type: str = "text", style: str = "det
         if not is_url:
             raise ValueError("URLの形式が正しくありません。http:// または https:// から始まるURLを入力してください。")
 
-        if is_youtube_url(input_content):
+        if YOUTUBE_FEATURE_ENABLED and is_youtube_url(input_content):
             video_id = extract_youtube_video_id(input_content)
             if not video_id:
                 raise ValueError("YouTubeの動画IDをURLから読み取れませんでした。URLを確認してください。")
@@ -353,7 +358,7 @@ def run_summarizer(input_content: str, req_type: str = "text", style: str = "det
             raise RuntimeError(f"Webページの取得に失敗しました: {e}")
     else:  # "text"
         if is_url:
-            raise ValueError("長文テキスト入力欄にURLが入力されています。URLは「URL」タブに入力してください。")
+            raise ValueError("長文テキスト入力欄にURLが入力されています。URLは「Web記事URL」タブに入力してください。")
         text = input_content
 
     return summarize(text, style=style, progress_callback=progress_callback)

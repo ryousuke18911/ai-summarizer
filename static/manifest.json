@@ -1,7 +1,7 @@
 {
   "name": "AI要約ツール",
   "short_name": "AI要約",
-  "description": "Web記事・YouTube・長文テキストをAIが瞬時に要約",
+  "description": "Web記事・長文テキストをAIが瞬時に要約",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

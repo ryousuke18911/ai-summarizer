@@ -15,14 +15,10 @@ document.addEventListener("DOMContentLoaded", () => {
   const downloadBtn = document.getElementById("download-btn");
   const charCount   = document.getElementById("char-count");
   const styleBtns   = document.querySelectorAll(".style-btn");
-  const ytPreview   = document.getElementById("yt-preview");
-  const ytThumb     = document.getElementById("yt-thumb");
-  const ytTitle     = document.getElementById("yt-title");
 
   let currentTab   = "url";
   let currentStyle = "detailed";
   let lastResult   = "";
-  let ytPreviewTimer = null;
 
   // ---- Tab switching ----
   tabs.forEach(tab => {
@@ -53,40 +49,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // ---- YouTube URL detection & preview (oEmbed, no API key needed) ----
-  function extractYoutubeId(url) {
-    const m = url.match(/(?:v=|\/embed\/|\/shorts\/|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
-    return m ? m[1] : null;
-  }
-
-  if (urlInput && ytPreview) {
-    urlInput.addEventListener("input", () => {
-      clearTimeout(ytPreviewTimer);
-      const value = urlInput.value.trim();
-      const videoId = extractYoutubeId(value);
-      if (!videoId) {
-        ytPreview.hidden = true;
-        return;
-      }
-      ytPreviewTimer = setTimeout(() => showYoutubePreview(videoId), 300);
-    });
-  }
-
-  async function showYoutubePreview(videoId) {
-    try {
-      const res = await fetch(
-        `https://www.youtube.com/oembed?url=${encodeURIComponent("https://www.youtube.com/watch?v=" + videoId)}&format=json`
-      );
-      if (!res.ok) throw new Error("oembed failed");
-      const data = await res.json();
-      ytThumb.src = `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
-      ytTitle.textContent = data.title || "";
-      ytPreview.hidden = false;
-    } catch (e) {
-      ytPreview.hidden = true;
-    }
-  }
-
   // ---- Summarize (async job + polling) ----
   if (btn) {
     btn.addEventListener("click", async () => {
@@ -103,7 +65,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
       if (currentTab === "text" && (content.startsWith("http://") || content.startsWith("https://"))) {
-        showError("テキスト入力欄にURLが入力されています。URLの要約は「URL」タブを使用してください。");
+        showError("テキスト入力欄にURLが入力されています。Web記事の要約は「Web記事URL」タブを使用してください。");
         return;
       }
 
